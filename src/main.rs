@@ -1,16 +1,15 @@
 use std::sync::Arc;
 
 use bbs_discord_bot::{Board, Handler, HandlerData};
-use dotenv::dotenv;
 use serenity::prelude::*;
 use tokio::sync::Mutex;
+use shuttle_runtime::SecretStore;
 
-#[tokio::main]
-async fn main() {
-    dotenv().ok();
+#[shuttle_runtime::main]
+async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_serenity::ShuttleSerenity {
+    let user_session = secrets.get("USER_SESSION").expect("USER_SESSION must be set");
+    let discord_token = secrets.get("DISCORD_TOKEN").expect("DISCORD_TOKEN must be set");
 
-    let user_session = std::env::var("USER_SESSION").expect("USER_SESSION must be set");
-    let discord_token = std::env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN must be set");
     let board = Board::new("https://ch.nicovideo.jp/unkchanel/bbs", "ch2598430");
 
     let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
@@ -24,12 +23,10 @@ async fn main() {
         data: Arc::clone(&handler_data),
     };
 
-    let mut client = Client::builder(&discord_token, intents)
+    let client = Client::builder(&discord_token, intents)
         .event_handler(handler)
         .await
         .expect("Err creating client");
 
-    if let Err(why) = client.start().await {
-        println!("Client error: {why:?}");
-    }
+    Ok(client.into())
 }
